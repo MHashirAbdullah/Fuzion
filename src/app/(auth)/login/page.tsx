@@ -1,10 +1,9 @@
 import { LoginForm } from "@/features/auth/components/loginForm";
-
-const Page = () =>{
+import Image from "next/image";
+import Link from "next/link";
+const Page = () => {
   return (
-    <div>
-      <LoginForm/>
-    </div>
-  )
-}
+        <LoginForm />
+  );
+};
 export default Page;
