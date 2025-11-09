@@ -11,6 +11,9 @@ const Page = () => {
   const testAI = useMutation(trpc.testAi.mutationOptions({
     onSuccess: () => {
       toast.success("AI execution triggered");
+    },
+    onError: (error) => {
+      toast.error("Something went wrong!");
     }
   }))
   const createWorkflow = useMutation(trpc.createWorkflow.mutationOptions(
