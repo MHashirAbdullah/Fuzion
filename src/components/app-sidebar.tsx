@@ -25,6 +25,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { useHasActiveSubscription } from "@/features/subscriptions/hooks/use-subscription";
 
 const menuItems = [
   {
@@ -42,6 +43,7 @@ export const AppSidebar = () => {
   const pathname = usePathname();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const {hasActiveSubscription,  isLoading} = useHasActiveSubscription()
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40 bg-linear-to-b from-background via-background to-muted/20">
@@ -121,13 +123,14 @@ export const AppSidebar = () => {
       }`}>
         <SidebarMenu className="space-y-1.5">
           {/* upgrade item */}
+          {!hasActiveSubscription && !isLoading && (
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Upgrade to Pro"
               className={`h-11 rounded-xl transition-all duration-300 hover:scale-[1.02] bg-linear-to-r from-yellow-500/10 via-orange-500/10 to-yellow-500/10 hover:from-yellow-500/20 hover:via-orange-500/20 hover:to-yellow-500/20 border border-yellow-500/20 hover:border-yellow-500/40 hover:shadow-lg hover:shadow-yellow-500/20 group relative overflow-hidden ${
                 isCollapsed ? "px-2 justify-center" : "gap-x-3 px-3"
               }`}
-              onClick={() => router.push("/pricing")}
+              onClick={() => authClient.checkout({slug: "Fuzion-Pro"})}
             >
               <div className="absolute inset-0 bg-linear-to-r from-yellow-500/0 via-yellow-500/30 to-yellow-500/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
               <StarIcon className="size-4 shrink-0 text-yellow-500 fill-yellow-500/30 group-hover:fill-yellow-500/50 transition-all duration-300 group-hover:rotate-360 relative z-10" />
@@ -139,7 +142,7 @@ export const AppSidebar = () => {
               )}
             </SidebarMenuButton>
           </SidebarMenuItem>
-
+          )}
           {/* billing item */}
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -147,7 +150,7 @@ export const AppSidebar = () => {
               className={`h-11 rounded-xl transition-all duration-300 hover:bg-accent/90 hover:scale-[1.02] hover:shadow-sm group relative overflow-hidden ${
                 isCollapsed ? "px-2 justify-center" : "gap-x-3 px-3"
               }`}
-              onClick={() => router.push("/billing")}
+              onClick={() => authClient.customer.portal()}
             >
               <div className="absolute inset-0 bg-linear-to-r from-white/0 via-white/5 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
               <CreditCardIcon className="size-4 shrink-0 group-hover:scale-110 transition-transform duration-300 relative z-10" />
