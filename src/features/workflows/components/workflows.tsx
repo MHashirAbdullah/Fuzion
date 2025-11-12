@@ -1,23 +1,62 @@
 "use client";
-import { EntityHeader } from "@/components/entity-views";
-import { useSuspenseWorkflows } from "../hooks/use-workflows";
+import { EntityContainer, EntityHeader } from "@/components/entity-views";
+import {
+  useSuspenseWorkflows,
+  useCreateWorkflow,
+} from "../hooks/use-workflows";
+import { useUpgradeModal } from "@/hooks/use-upgrade-modal";
+import { useRouter } from "next/navigation";
 
 export const WorkflowsList = () => {
   const workflows = useSuspenseWorkflows();
-  return <p>{JSON.stringify(workflows.data, null, 2)}</p>;
+  return (
+    <div className="flex flex-1 justify-center items-center">
+      <p>{JSON.stringify(workflows.data, null, 2)}</p>
+    </div>
+  );
 };
 
 export const WorkflowsHeader = ({ disabled }: { disabled?: boolean }) => {
+  const router = useRouter();
+  const createWorkflow = useCreateWorkflow();
+  const { handleError, modal } = useUpgradeModal();
+  const handleCreate = () => {
+    createWorkflow.mutate(undefined, {
+      onSuccess: (data) =>{
+        router.push(`/workflows/${data.id}`);
+      },
+      onError: (error) => {
+        handleError(error);
+      },
+    });
+  };
   return (
     <>
+      {modal}
       <EntityHeader
         title="Workflows"
         description="Automate tasks and processes with workflows."
-        onNew={()=>{console.log("Create new workflow")}}
+        onNew={handleCreate}
         newButtonLabel="New Workflow"
         disabled={disabled}
-        isCreating={false}
+        isCreating={createWorkflow.isPending}
       />
     </>
+  );
+};
+
+export const WorkflowsContainer = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  return (
+    <EntityContainer
+      header={<WorkflowsHeader />}
+      search={<></>}
+      pagination={<></>}
+    >
+      {children}
+    </EntityContainer>
   );
 };
