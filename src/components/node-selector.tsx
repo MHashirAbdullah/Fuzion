@@ -183,7 +183,7 @@ export function NodeSelector({
                   ) : (
                     <Icon className="size-5" />
                   )}
-                  <div className="flex flex-col items-center text-left">
+                  <div className="flex flex-col text-left">
                     <span className="font-medium text-sm">
                       {nodeType.label}
                     </span>
