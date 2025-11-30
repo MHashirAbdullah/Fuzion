@@ -1,98 +1,47 @@
-import prisma from "@/lib/db";
+import { NonRetriableError } from "inngest";
 import { inngest } from "./client";
-import { generateText } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createXai } from "@ai-sdk/xai";
-import * as Sentry from "@sentry/nextjs";
+import prisma from "@/lib/db";
+import { toplogicalSort } from "./utils";
+import { NodeType } from "@/generated/prisma/enums";
+import { getExecutor } from "@/features/executions/lib/executor-registry";
 
-const google = createGoogleGenerativeAI();
-const openai = createOpenAI();
-const anthropic = createAnthropic();
-const xai = createXai({
-  apiKey: process.env.XAI_API_KEY!,
-});
-export const execute = inngest.createFunction(
-  { id: "execute-ai" },
-  { event: "execute/ai" },
+export const executeWorkflow = inngest.createFunction(
+  { id: "execute-workflow" },
+  { event: "workflows/execute.workflow" },
   async ({ event, step }) => {
-    await step.sleep("pretend", "5s");
-    Sentry.logger.info("User triggered test log", {
-      log_source: "sentry_test",
+    const workflowId = event.data.workflowId;
+    if (!workflowId) {
+      throw new NonRetriableError("No workflow ID provided");
+    }
+    const sortedNodes = await step.run("prepare-worflow", async () => {
+      // Logic to prepare the workflow for execution
+      const workflow = await prisma.workflow.findUniqueOrThrow({
+        where: {
+          id: workflowId,
+        },
+        include: {
+          node: true,
+          connections: true,
+        },
+      });
+      return toplogicalSort(workflow.node, workflow.connections);
     });
-    const { steps: geminiSteps } = await step.ai.wrap(
-      "gemini-generate-text",
-      generateText,
-      {
-        model: google("gemini-2.5-flash"),
-        // system: "You are an expert workflow automation AI. Your task is to help create workflows based on user requirements. Respond in concise JSON format.",
-        system: "You are a helpful assistant.",
-        // prompt: `Create a workflow based on the following user requirements: ${event.data.requirements}. The workflow should include steps for data input, processing, and output. Ensure the workflow is efficient and easy to understand.`
-        prompt: "What is 2 + 2?",
-        experimental_telemetry: {
-          isEnabled: true,
-          recordInputs: true,
-          recordOutputs: true,
-        },
-      }
-    );
 
-    const { steps: openAISteps } = await step.ai.wrap(
-      "openai-generate-text",
-      generateText,
-      {
-        model: openai("gpt-4"),
-        // system: "You are an expert workflow automation AI. Your task is to help create workflows based on user requirements. Respond in concise JSON format.",
-        system: "You are a helpful assistant.",
-        // prompt: `Create a workflow based on the following user requirements: ${event.data.requirements}. The workflow should include steps for data input, processing, and output. Ensure the workflow is efficient and easy to understand.`
-        prompt: "What is 2 + 2?",
-        experimental_telemetry: {
-          isEnabled: true,
-          recordInputs: true,
-          recordOutputs: true,
-        },
-      }
-    );
+    //initialize the context with any initial data from trigger
+    let context = event.data.initialdata || {};
 
-    const { steps: anthropicSteps } = await step.ai.wrap(
-      "anthropic-generate-text",
-      generateText,
-      {
-        model: anthropic("claude-sonnet-4-5"),
-        // system: "You are an expert workflow automation AI. Your task is to help create workflows based on user requirements. Respond in concise JSON format.",
-        system: "You are a helpful assistant.",
-        // prompt: `Create a workflow based on the following user requirements: ${event.data.requirements}. The workflow should include steps for data input, processing, and output. Ensure the workflow is efficient and easy to understand.`
-        prompt: "What is 2 + 2?",
-        experimental_telemetry: {
-          isEnabled: true,
-          recordInputs: true,
-          recordOutputs: true,
-        },
-      }
-    );
-
-    const { steps: XAISteps } = await step.ai.wrap(
-      "xai-generate-text",
-      generateText,
-      {
-        model: xai("grok-3"),
-        // system: "You are an expert workflow automation AI. Your task is to help create workflows based on user requirements. Respond in concise JSON format.",
-        system: "You are a helpful assistant.",
-        // prompt: `Create a workflow based on the following user requirements: ${event.data.requirements}. The workflow should include steps for data input, processing, and output. Ensure the workflow is efficient and easy to understand.`
-        prompt: "What is 2 + 2?",
-        experimental_telemetry: {
-          isEnabled: true,
-          recordInputs: true,
-          recordOutputs: true,
-        },
-      }
-    );
+    for (const node of sortedNodes) {
+      const executor = getExecutor(node.type as NodeType);
+      context = await executor({
+        data: node.data as Record<string, unknown>,
+        nodeId: node.id,
+        context,
+        step,
+      });
+    }
     return {
-      geminiSteps,
-      openAISteps,
-      anthropicSteps,
-      XAISteps,
+      workflowId,
+      result: context,
     };
   }
 );
