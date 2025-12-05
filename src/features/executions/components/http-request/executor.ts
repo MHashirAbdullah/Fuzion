@@ -11,9 +11,9 @@ Handlebars.registerHelper("json", (context) => {
 });
 
 type HttpRequestData = {
-  variableName: string;
-  endpoint: string;
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  variableName?: string;
+  endpoint?: string;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: string;
 };
 
@@ -30,44 +30,45 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({
       status: "loading",
     })
   );
-  if (!data.variableName) {
-    await publish(
-      httpRequestChannel().status({
-        nodeId,
-        status: "error",
-      })
-    );
-    throw new NonRetriableError(
-      "HTTP Request node validation failed: 'variableName' is required but missing."
-    );
-  }
 
-  if (!data.method) {
-    await publish(
-      httpRequestChannel().status({
-        nodeId,
-        status: "error",
-      })
-    );
-    throw new NonRetriableError(
-      "HTTP Request node validation failed: 'method' is missing or invalid."
-    );
-  }
-
-  if (!data.endpoint) {
-    await publish(
-      httpRequestChannel().status({
-        nodeId,
-        status: "error",
-      })
-    );
-    throw new NonRetriableError(
-      "HTTP Request node is missing an endpoint. No endpoint configured."
-    );
-  }
   // For http  request, we simply return the existing context
   try {
     const result = await step.run("http-request", async () => {
+      if (!data.variableName) {
+        await publish(
+          httpRequestChannel().status({
+            nodeId,
+            status: "error",
+          })
+        );
+        throw new NonRetriableError(
+          "HTTP Request node validation failed: 'variableName' is required but missing."
+        );
+      }
+
+      if (!data.method) {
+        await publish(
+          httpRequestChannel().status({
+            nodeId,
+            status: "error",
+          })
+        );
+        throw new NonRetriableError(
+          "HTTP Request node validation failed: 'method' is missing or invalid."
+        );
+      }
+
+      if (!data.endpoint) {
+        await publish(
+          httpRequestChannel().status({
+            nodeId,
+            status: "error",
+          })
+        );
+        throw new NonRetriableError(
+          "HTTP Request node is missing an endpoint. No endpoint configured."
+        );
+      }
       const endpoint = Handlebars.compile(data.endpoint)(context);
       const method = data.method;
       const options: KyOptions = { method };
@@ -96,7 +97,7 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({
 
       return {
         ...context,
-        [data.variableName!]: responsePayload,
+        [data.variableName]: responsePayload,
       };
     });
 
